@@ -11,7 +11,7 @@
 	    {OPERAND, OPERAND_INPUT}, {OPERATOR, ERROR},\
 	    {OPEN_PARAN, OPERATOR_INPUT}, {CLOSE_PARAN, ERROR},\
 	    {MINUS, MINUS_INPUT}}}
-	    
+
 #define SC2 {{INVALID_SYMBOL, ERROR}, {END_SYMBOL, CALCULATE},\
 	    {OPERAND, ERROR}, {OPERATOR, OPERATOR_INPUT},\
 	    {OPEN_PARAN, ERROR}, {CLOSE_PARAN, C_PARAN_INPUT},\
@@ -63,12 +63,14 @@ struct op_s {
 
 typedef struct op_s op_s_t;
 
+
 typedef struct statechange
 {
     const int in;
     const state_t out;
-    
+
 }st_change_t;
+
 
 typedef struct FSM
 {
@@ -86,9 +88,9 @@ static char *curr_token;
 static int GetNum(char a)
 {
 	a = (a == 0) +
-	(a >= '0' && a <= '9') * 2 + 
-	((a == '*') || (a == '+') || (a == '^') || (a == '/') ) * 3 + 
-	(a == '(') * 4 + 
+	(a >= '0' && a <= '9') * 2 +
+	((a == '*') || (a == '+') || (a == '^') || (a == '/') ) * 3 +
+	(a == '(') * 4 +
 	(a == ')') * 5 +
 	(a == '-') * 6;
 
@@ -130,13 +132,13 @@ op_s_t ops[]={
 
 fsm_t fsm[] =
    {
-        {SYMBOL_EVAL, NULL,       SC1,                   
-        {OPERAND_INPUT, PushNumber,     SC2,                                 
-        {OPERATOR_INPUT, HandleOp, 	SC1,                                         
-        {MINUS_INPUT, UnaryOp, 		SC1, 
+        {SYMBOL_EVAL, NULL,       SC1,
+        {OPERAND_INPUT, PushNumber,     SC2,
+        {OPERATOR_INPUT, HandleOp, 	SC1,
+        {MINUS_INPUT, UnaryOp, 		SC1,
         {C_PARAN_INPUT, HandlePar, 	SC2,
         {CALCULATE, HandleOp, {{-1, SYMBOL_EVAL}}},
-        {ERROR, ErFunc, {{-1, ERROR}}} 
+        {ERROR, ErFunc, {{-1, ERROR}}}
     };
 
 /************* API FUNCTIONS *******************/
@@ -146,29 +148,29 @@ status_t Calculate(const char *exp, double *out)
 	size_t size = strlen(exp);
 	int num = 0;
 	char dummy_op = '\0';
-	
+
 	status_t status = SUCCESS;
 	state_t state = SYMBOL_EVAL;
-	
+
 	stack_t *values = NULL;
 	stack_t *operators = NULL;
-	
+
 	curr_token = (char*)exp;
-	
+
 	assert(NULL != exp);
 	assert(NULL != out);
-	
+
 	values = StackCreate(sizeof(double), size);
 	operators = StackCreate(sizeof(char), size);
-	
+
 	if (NULL == values || NULL == operators )
 	{
 		free(values);
 		return MALLOC_ERR;
 	}
-	
+
 	StackPush(operators, &dummy_op);
-	
+
 	while(status == SUCCESS && state != ERROR && state != CALCULATE)
 	{
 		SkipWhiteSpaces(curr_token);
@@ -176,12 +178,12 @@ status_t Calculate(const char *exp, double *out)
 		state = fsm[state].new_state[num].out;
 		status = fsm[state].Action(out, values, operators);
 	}
-	
+
 	FinalCheck(&status, out, values, operators);
-	
+
 	StackDestroy(values);
 	StackDestroy(operators);
-	
+
 	return status;
 }
 
@@ -193,7 +195,7 @@ static status_t PushNumber(double *out, stack_t *values, stack_t *operators)
 	char *ptr = NULL;
 	(void)operators;
 	(void)out;
-	
+
 	val = strtod(curr_token, &ptr);
 	curr_token = ptr;
 
@@ -207,24 +209,24 @@ static status_t HandleOp(double *out, stack_t *values, stack_t *operators)
 	status_t status = SUCCESS;
 	char curr_op = 0;
 	char top_op = 0;
-	
+
 	curr_op = *(curr_token);
 	top_op = *(char*)StackPeek(operators);
-		
+
 	while( (top_op != 0 && GetOp(top_op)->prec < GetOp(curr_op)->prec
-		&& status == SUCCESS && top_op != '(') 
+		&& status == SUCCESS && top_op != '(')
 		|| ( GetOp(top_op)->assoc == GetOp(curr_op)->assoc && GetOp(top_op)->prec == ops[6].prec
-		      && status == SUCCESS) 
+		      && status == SUCCESS)
 		|| (GetOp(top_op)->prec ==  GetOp(curr_op)->prec &&  GetOp(curr_op)->prec == 3 ) )
 	{
 		status = OneCalculation(out, values, operators);
 		top_op = *(char*)StackPeek(operators);
-		
+
 	}
 	StackPush(operators, &curr_op);
-	
+
 	++curr_token;
-	
+
 	return status;
 }
 
@@ -232,27 +234,27 @@ static status_t HandlePar(double *out, stack_t *values, stack_t *operators)
 {
 	status_t status = SUCCESS;
 	char top_op = *(char*)StackPeek(operators);
-	
+
 	while( top_op != '(' && top_op != 0)
 	{
 		status = OneCalculation(out, values, operators);
-		top_op = *(char*)StackPeek(operators);	
+		top_op = *(char*)StackPeek(operators);
 	}
-	
-	*out *= (top_op != 0); 
+
+	*out *= (top_op != 0);
 	StackPop(operators);
 	++curr_token;
-	
+
 	return ((status == SUCCESS) ? (top_op == 0)*SYNTAX_ERR : status) ;
 }
 
 static status_t UnaryOp(double *out, stack_t *values, stack_t *operators)
 {
 	(void)out;
-	StackPush(values, &multiplicator); 
-	StackPush(operators, &mult); 
+	StackPush(values, &multiplicator);
+	StackPush(operators, &mult);
 	++curr_token;
-	
+
 	return SUCCESS;
 }
 
@@ -278,20 +280,20 @@ static status_t OneCalculation(double *out, stack_t *values, stack_t *operators)
 	char top_op = 0 ;
 	double first_operand = 0;
 	double second_operand = 0;
-	
+
 	assert(NULL != values);
 	assert(NULL != operators);
 	assert(NULL != out);
-	
+
 	top_op = *(char*)StackPeek(operators);
 	StackPop(operators);
 	second_operand = *(double*)StackPeek(values);
 	StackPop(values);
 	first_operand = *(double*)StackPeek(values);
 	StackPop(values);
-		
+
 	status = GetOp(top_op)->handler(first_operand, second_operand, out);
-	
+
 	StackPush(values, out);
 
 	return status;
@@ -326,7 +328,7 @@ static status_t MultNum(double first, double second, double *out)
 {
 	*out = first * second;
 	assert(NULL != out);
-	
+
 	return SUCCESS;
 }
 
@@ -334,7 +336,7 @@ static status_t AddNum(double first, double second, double *out)
 {
 	*out = first + second;
 	assert(NULL != out);
-	
+
 	return SUCCESS;
 }
 
@@ -342,7 +344,7 @@ static status_t SubNum(double first, double second, double *out)
 {
 	*out = first - second;
 	assert(NULL != out);
-	
+
 	return SUCCESS;
 }
 
@@ -350,7 +352,7 @@ static status_t DivNum(double first, double second, double *out)
 {
 	status_t status = SUCCESS;
 	assert(NULL != out);
-	
+
 	status = div_status_arr[second == 0];
 	*out = !(second==0) * first / ((second==0) + second);
 
@@ -362,11 +364,11 @@ static status_t PowNum(double first, double second, double *out)
 	status_t status = SUCCESS;
 	double digit = 0;
 	assert(NULL != out);
-	
+
 	status = div_status_arr[first == 0 && second < 0];
 	digit = (first==0 && second < 0);
 	*out = !digit * pow(digit + first, second);
-	
+
 	return status;
 }
 
@@ -378,5 +380,3 @@ static status_t Dummy(double first, double second, double *out)
 
 	return SUCCESS;
 }
-
-
